@@ -1,0 +1,62 @@
+---
+title: "Template for 5501-01 programming assignment"
+author: "Michael Dang"
+format: 
+  html:
+    embed-resources: true
+date: 2024-08-26
+---
+
+This program reads data on housing prices in Albuquerque, New Mexico in 1993. Find more information in the [data dictionary][dd].
+
+[dd]: https://github.com/pmean/datasets/blob/master/albuquerque-housing.yaml
+
+This code is placed in the public domain.
+
+## Load the tidyverse library
+
+For most of your programs, you should load the tidyverse library. The messages and warnings are suppressed.
+
+```{r setup}
+#| message: false
+#| warning: false
+library(tidyverse)
+```
+
+## Read the data and view a brief summary
+
+Use the read_csv function to read the data. The glimpse function will produce a brief summary.
+
+```{r read}
+alb <- read_csv(
+  file="../data/albuquerque-housing.csv",
+  col_names=TRUE,
+  col_types="nnnnccc",
+  na=".")
+glimpse(alb)
+```
+
+## Calculate overall means
+
+The summarize_if function produces means, but only for numeric data. You wouldn't want to compute means for data with values "yes" and "no".
+
+```{r means}
+alb |>
+  summarise_if(is.numeric, mean, na.rm = TRUE)
+```
+
+## Summarize price
+
+The average price of a home, 106 thousand dollars, is quite low because the data comes from 1993.
+
+## Summarize sqft
+
+The average square foot of a home, 1,653 square feet, is quite low. However, different cities and states have different housing.
+
+## Summarize age
+
+The average age of a house is almost 15 years, which is not too old in terms of housing. 
+
+## Summarize features
+
+The average feature of a house is between 3 and 4 features. So the average house will have between 3 and 4 features in it. Again, this data is back from 1993, hence most of the variables are different now.

@@ -1,0 +1,140 @@
+---
+title: "Analysis of Chance of Admission"
+author: "Michael Dang"
+format: 
+  html:
+    embed-resources: true
+date: 11-20-2024
+---
+
+The dataset that will be used is: <https://www.kaggle.com/datasets/mohansacharya/graduate-admissions>
+
+Where the data dictionary is found: <https://github.com/micho0802/Bio-Stat/blob/main/Admission_Predict_data_dictionary.yaml>
+
+## Load the library
+```{r setup}
+#| message: false
+#| warning: false
+library(broom)
+library(tidyverse)
+library(readr)
+```
+
+
+## Load the dataset
+```{r read}
+dataset <- read_csv(
+  file = "../data/Admission_Predict.csv", show_col_types = FALSE)
+names(dataset) <- tolower(names(dataset))
+glimpse(dataset)
+```
+
+
+Rename the column
+```{r rename}
+dataset |> 
+  rename(
+    serial_no = "serial no.",
+    gre_score = "gre score",
+    toefl_score = "toefl score",
+    university_rating = "university rating",
+    chance_of_admit = "chance of admit"
+  ) -> dataset
+
+glimpse(dataset)
+```
+
+## Descriptive statistics
+```{r group-means}
+dataset |>
+  group_by(university_rating) |>
+  summarize(
+    chance_of_admit_mn=mean(chance_of_admit),
+    chance_of_admit_sd=sd(chance_of_admit),
+    n=n())
+```
+As the University Rating increase the Chance of Admit decrease. More than half of the applications were applied to 2nd and 3rd University Rating.
+
+## Box plot
+```{r box-plot1}
+dataset |> 
+  ggplot(aes(x = as.factor(university_rating), y = chance_of_admit)) +
+    geom_boxplot(fill = "lightblue", color = "black") +
+    ggtitle("Graph drawn by Michael Dang on 2024-11-15") +
+    xlab("University Rating") +
+    ylab("Chance of Admit") +
+    coord_flip() +
+    theme_minimal()
+```
+
+- There is evidence of non-normality in the distribution of 'Chance of Admit' across university ratings. The graph exhibits right skewness, especially in lower ratings, and includes outliers across all ratings, with a concentration in the 3rd and 4th ratings. 
+- Hence non-normality assumption maybe violated and we may assume for heterogeneity.
+
+#### Another boxplot
+
+```{r box-plot2}
+dataset |> 
+  ggplot(aes(x = as.factor(university_rating), y = cgpa)) +
+    geom_boxplot(fill = "lightblue", color = "black") +
+    ggtitle("Graph drawn by Michael Dang on 2024-11-15") +
+    xlab("University Rating") +
+    ylab("Undergraduate GPA on the scale 10") +
+    coord_flip() +
+    theme_minimal()
+```
+- The plot shows evidence of variability in GPA across university ratings. Higher university ratings are associated with higher cumulative GPAs, but the distributions are non-uniform. Outliers are present in all university ratings, with a concentrations in the 1st and 4th ratings. The data suggests some skewness, particularly in the lower ratings, indicating a diverse range of student profiles across these ratings. 
+- Hence non-normality assumption maybe violated and we may assume for heterogeneity.
+
+
+## Histogram plot
+
+```{r histogram1}
+dataset |> 
+  ggplot(aes(x = chance_of_admit)) +
+    geom_histogram(binwidth = 0.05, fill = "lightgreen", color = "black") +
+    ggtitle("Graph drawn by Michael Dang on 2024-11-15") +
+    xlab("Chance of Admit") +
+    ylab("Frequency") 
+```
+The histogram of the Chance of Admit showed the distribution is right-skewed but it is roughly center at the middle.
+
+#### Another histogram plot
+```{r histogram2}
+dataset |> 
+  ggplot(aes(x = cgpa)) +
+    geom_histogram(binwidth = 0.3, fill = "lightgreen", color = "black") +
+    ggtitle("Graph drawn by Michael Dang on 2024-11-15") +
+    xlab("CGPA") +
+    ylab("Frequency") 
+```
+The histogram of CGPA shows roughly bell-shaped distribution, which suggests it may approximate a normal distribution.
+
+## Hypothesis test
+
+- Null hypothesis ($H_0$): The mean "Chance of Admit" is the same across all university ratings.
+
+- Alternative hypothesis ($H_a$): The mean "Chance of Admit" differs for at least one university rating group.
+
+- $H_0: \mu = \mu_0$ vs $H_a: \mu \neq \mu_0$ 
+
+## One-way ANOVA
+
+```{r anova}
+m1 <- aov(chance_of_admit ~ as.factor(university_rating), data = dataset)
+tidy(m1)
+```
+The F-ratio is large and the p-value is small. Conclude there is a differs for at least one university rating group.
+
+Since ANOVA indicates significant differences, perform post-hoc tests (e.g., Tukey's HSD) to identify which specific groups (university ratings) differ from each other.
+
+```{r Tukey post-hoc-test}
+TukeyHSD(m1)
+```
+- Higher Ratings Have Higher Chance: Each higher university rating has a significantly higher "Chance of Admit" compared to lower ratings
+
+- Largest Difference: The largest difference is between ratings 5 and 1, diff = 0.3401, showing that students with a university_rating = 5 have a substantially higher average chance of admit compared to rating = 1.
+
+- Smallest Significant Difference: The smallest difference is between 5 and 4, diff = 0.0701, suggesting a smaller improvement in "Chance of Admit" between these higher-rated groups.
+
+- Statistical Significance: All pairwise comparisons have p-values less than 0.05, indicating that the differences in means are statistically significant.
+

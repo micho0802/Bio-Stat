@@ -1,0 +1,208 @@
+---
+title: "Analysis of breast feeding study"
+author: "Michael Dang"
+format: 
+  html:
+    embed-resources: true
+date: 2024-09-22
+---
+
+This program reads data and fits various linear regression models on a breast feeding study in pre-term infants.  Find more information in the [data dictionary][dd]. This code is placed in the public domain.
+
+[dd]: https://raw.githubusercontent.com/pmean/datasets/master/breast-feeding-preterm.yaml
+
+## Load the tidyverse library
+
+For most of your programs, you should load the tidyverse library. The messages and warnings are suppressed.
+
+```{r setup}
+#| message: false
+#| warning: false
+library(broom)
+library(tidyverse)
+```
+
+## Read the data and view a brief summary
+
+Use the read_csv function to read the data. With a large number of variables, you may choose to leave the col_types out.R will usually figure out which variables are numeric and which are strings.
+
+Replace all the numeric codes of -1 with the missing value code (NA).
+
+```{r read}
+bf <- read_csv(
+  file="../data/breast-feeding-preterm.csv",
+  col_names=TRUE)
+glimpse(bf)
+```
+
+## Convert -1 to NA
+
+The code below only works because every single variable in the dataset is non-negative.
+
+```{r convert-missing}
+bf[bf==-1] <- NA
+```
+
+## Calculate statistics for mother's age
+
+```{r gest-age}
+bf |>
+	summarize(
+		mean_mom_age=mean(mom_age, na.rm=TRUE),
+		sd_mom_age=sd(mom_age, na.rm=TRUE),
+		min_mom_age=min(mom_age, na.rm=TRUE),
+		max_mom_age=max(mom_age, na.rm=TRUE),
+		n_missing=sum(is.na(mom_age))) |>
+	data.frame()
+```
+
+This is a reasonable distribution of ages. If you saw mothers much younger than 16 years or much older than 44 years, that might raise some concerns about the data.
+
+## Calculate statistics for age_stop
+
+```{r dc-age}
+bf |>
+	summarize(
+		mean_age_stop=mean(age_stop, na.rm=TRUE),
+		sd_age_stop=sd(age_stop, na.rm=TRUE),
+		min_age_stop=min(age_stop, na.rm=TRUE),
+		max_age_stop=max(age_stop, na.rm=TRUE),
+		n_missing=sum(is.na(age_stop))) |>
+	data.frame()
+```
+
+The maximum value, 34 weeks, was a bit of concern for me, because the study was a six month study, which would imply the largest value would be 24 or 26. But I was told that breast feeding duration included time in the hospital, which could easily be as long as 8 or 10 weeks for a pre-term infant.
+
+## Question 1
+```{r q1-gest-age}
+bf |>
+	summarize(
+		mean_gest_age=mean(gest_age, na.rm=TRUE),
+		sd_gest_age=sd(gest_age, na.rm=TRUE),
+		min_gest_age=min(gest_age, na.rm=TRUE),
+		max_gest_age=max(gest_age, na.rm=TRUE),
+		n_missing=sum(is.na(gest_age))) |>
+	data.frame()
+```
+The average gestational age in this dataset is around 32 weeks, with a range from 26 to 35 weeks. The standard deviation of 2 weeks indicates moderate variability in gestational ages. There are no missing values in the dataset for this variable.
+
+## Question 2
+
+```{r q2-dc-age}
+bf |>
+	summarize(
+		mean_dc_age=mean(dc_age, na.rm=TRUE),
+		sd_dc_age=sd(dc_age, na.rm=TRUE),
+		min_dc_age=min(dc_age, na.rm=TRUE),
+		max_dc_age=max(dc_age, na.rm=TRUE),
+		n_missing=sum(is.na(dc_age))) |>
+	data.frame()
+```
+
+The average age at discharge is approximately 34 days, with a wide range from 8 to 77 days. The relatively high standard deviation of 17 days indicates a considerable variation in the discharge ages among the patients. There are no missing values for this variable.
+
+
+## Plot mother's age and age when breast feeding stopped
+
+```{r plot}
+bf |>
+	ggplot(aes(mom_age, age_stop)) +
+	  geom_point() +
+	  xlab("Mother's age (years)") +
+	  ylab("When breast feeding ended (weeks)") +
+    geom_smooth(method="lm", se=FALSE, ) +
+    ggtitle("Plot produced by Michael Dang on 2024-09-22")
+```
+
+There is a weak relationship between mother's age and age when she stopped breast feeding.
+
+## Question 3
+
+```{r q3-plot}
+bf |>
+	ggplot(aes(gest_age, dc_age)) +
+	  geom_point() +
+	  xlab("Gestational Age (weeks)") +
+	  ylab("Age at Discharge (days)") +
+    geom_smooth(method="lm", se=FALSE) +
+    ggtitle("Scatterplot Of Age At Discharge Vs. Gestational Age")
+```
+
+The plot suggests that infants with lower gestational ages tend to spend more time in the birth hospital, which supports the general expectation that pre-term infants are discharged later than full-term infants.
+
+
+## Linear regression estimates for predicting age_stop
+
+```{r linear-regression}
+m1 <- lm(age_stop~mom_age, data=bf)
+m1
+```
+
+The estimated average duration of breast feeding increases by 0.39 weeks for each increase of one year in the mother's age. The estimated average duration of breast feeding is 5.9 weeks for a mother of age zero. This is an extrapolation well beyond the range of the data. 
+
+## Question 4
+
+```{r q4-linear-regression-discharge-age-and-gestational-age}
+m2 <- lm(dc_age~gest_age, data=bf)
+m2
+```
+For each additional week of gestational age, the expected age at discharge decreases by approximately 7.49 days. The intercept of 272.21 days represents the predicted age at discharge if an infant had a gestational age of 0 weeks.
+
+
+## Analysis of variance table for age_stop
+
+```{r anova}
+anova(m1)
+```
+
+The F-ratio is large and the p-value is small, so you would reject the null hypothesis and conclude that there is a linear relationship between mother's age and duration of breast feeding.
+
+## Question 5
+
+```{r q5-anova}
+anova(m2)
+```
+The F-ratio is large and the p-value is small, so the null hypothesis is rejected and there is a linear relationship between age at discharge (days) and gestational age (weeks).
+
+
+## R-squared for age_stop
+
+```{r r-squared}
+glance(m1)$r.squared
+```
+
+Although there is a statistically significant relationship between mother's age and duration of breast feeding, as shown above, this relationship is very weak.
+
+## Question 6
+
+```{r q6-r-squared}
+glance(m2)$r.squared
+```
+
+There are approximately 77.4% of the variability in the age at discharge is explained by the gestational age. This suggests a strong relationship between gestational age and the time infants spend in the hospital.
+
+## Confidence interval for the slope
+
+```{r ci-age-stop}
+confint(m1)
+```
+
+The confidence interval includes only positive values, so we are 95% confident that the duration of breast feeding increases as the mother's age increases. The slope could be as small as  0.067 weeks per year of mother's age or as large as 0.71 weeks per year of mother's age. This is a very wide interval indicating a large degree of uncertainty about the true value of the slope parameter.
+
+
+## Alternate test for the slope parameter
+
+```{r t-test-for-age-stop}
+tidy(m1)
+```
+
+The T statistic is testing the slope parameter is large and the p-value is small, both indicating that you should reject the null hyothesis and conclude that there is a positive relationship between mother's age and duration of breast feeding.
+
+
+## Question 7
+```{r q7-i-dc-age}
+confint(m2)
+```
+We are 95% confident that the true value of the intercept lies between 243.83 and 300.58 with the true value of the slope lies between -8.38 and -6.60. This means that for each additional week of gestation, the age at discharge decreases by between 6.60 and 8.38 days. The confidence interval does not include 0, indicating that gestational age has a statistically significant negative effect on the time spent in the hospital.
+
+The interval is relatively narrow, indicating that the estimate of the slope is precise and there is relatively low uncertainty in the effect of gestational age on discharge time.

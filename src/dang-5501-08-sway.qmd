@@ -1,0 +1,85 @@
+---
+title: "Analysis of postural sway data"
+author: "Michael Dang"
+format: 
+  html:
+    embed-resources: true
+date: 2024-10-15
+---
+
+This program reads data and runs a two-sample t-test. Consult the [data dictionary][dic] for information about the data itself.
+
+[dic]: https://github.com/pmean/data/blob/main/files/postural-sway.yaml
+
+This program was written by Steve Simon on 2024-10-07 with a minor fix to the documentation on 2024-10-13. It is placed in the public domain.
+
+## Libraries
+
+```{r setup}
+#| message: false
+#| warning: false
+library(broom)
+library(tidyverse)
+```
+
+## Read data
+
+```{r read-memory}
+sway <- read_tsv(
+  file="../data/postural-sway.txt",
+  col_types="cnn")
+names(sway) <- tolower(names(sway))
+glimpse(sway)
+```
+
+## Boxplot of side-to-side sway by age
+
+```{r}
+sway |>
+  ggplot(aes(age, sidesway)) +
+    geom_boxplot() +
+    ggtitle("Graph drawn by Michael Dang on 2024-10-05") +
+    xlab("Treatment group") +
+    ylab("Side to side sway") +
+    coord_flip()
+```
+Elderly patients tend to have generally higher sway values compared to the younger group, indicating more instability in their sway. The variation (interquartile range) between the two groups appears similar, suggesting comparable variability in their sway behavior.
+
+## Descriptive statistics for side-to-side sway by age
+
+```{r group-means}
+sway |>
+  group_by(age) |>
+  summarize(
+    sts_mn=mean(sidesway),
+    sts_sd=sd(sidesway),
+    n=n())
+```
+
+The average side-to-side sway is higher in the elderly patients. There is more variation in the elderly group, possibly caused by the extreme outlier.
+
+## Two-sample t-test
+
+```{r t-test}
+m1 <- t.test(
+  sidesway ~ age, 
+  data=sway,
+  alternative="two.sided",
+  var.equal=TRUE)
+m1
+```
+- The two-sample t-test result indicates that the t-statistic is 1.8349 with 15 degrees of freedom, and the p-value is 0.08643. 
+
+- Since the p-value is greater than the conventional significance level (0.05), we fail to reject the null hypothesis. This suggests that there is no statistically significant difference between the mean side-to-side sway values for elderly and young patients at the 5% significance level. 
+
+- However, the confidence interval (-1.15 to 15.34) indicates the range within which the true difference in means likely falls, implying that while a difference exists, the evidence isn't strong enough to conclude it definitively under these test conditions.
+
+
+## Equivalent analysis using linear regression
+
+```{r lm}
+m2 <- lm(sidesway ~ age, data=sway)
+tidy(m2)
+confint(m2)
+```
+The p-value in the linear regression analysis is the same as in two-sample t-test and same as the confidence interval.

@@ -1,0 +1,93 @@
+---
+title: "Analysis of Wolf River pollution"
+author: "Michael Dang"
+format: 
+  html:
+    embed-resources: true
+date: 10-29-2024
+---
+
+This program reads data on the relationship sampling depth and two pollutant concentrations. Find more information in the [data dictionary][dd].
+
+[dd]: https://github.com/pmean/datasets/blob/master/wolf-river-pollution.yaml
+
+## Load the tidyverse library
+
+For most of your programs, you should load the tidyverse library. The messages and warnings are suppressed.
+
+```{r setup}
+#| message: false
+#| warning: false
+library(broom)
+library(tidyverse)
+```
+
+## Read the data
+
+```{r read-1}
+river <- read_tsv(
+  file="../data/wolf-river-pollution.txt",
+  col_names=TRUE,
+  col_types="cnn")
+names(river) <- tolower(names(river))
+glimpse(river)
+```
+## Question 1
+Compare the average hcb concentrations between the surface, middepth and bottom sampling locations using analysis of variance. Be sure to include appropriate descriptive statistics and graphs. Comment on the assumptions needed for this test, but do not conduct any alternative analyses. If there is a statistically significant difference among the three means, use the Tukey post-hoc comparison to identify where the differences lie.
+
+## Draw boxplots
+
+```{r box-1}
+#| fig.width: 6
+#| fig.height: 2.5
+river |>
+  ggplot(aes(depth, hcb)) +
+    geom_boxplot() +
+    xlab("River depth") +
+    ylab("HCB concentration") +
+    ggtitle("Graph drawn by Michael Dang on 2024-10-29") +
+    coord_flip()
+```
+The deeper you sample, the higher the concentration of HCB. The variation also increases as you go deeper. There are some minor deviations from normality, but nothing too serious.
+
+## Descriptive statistics
+
+```{r descriptives-1}
+river |>
+  group_by(depth) |>
+  summarize(
+    aldrin_mn=mean(hcb),
+    aldrin_sd=sd(hcb),
+    n=n())
+```
+
+The bottom samples have the highest average concentration and the middle have highest amount of variability.
+
+## Analysis of variance table
+
+```{r aov-1}
+m1 <- aov(hcb ~ depth, data=river)
+tidy(m1)
+```
+
+Since the p-value (0.0649) is greater than 0.05, we fail to reject the null hypothesis at the 5% significance level. This means there is not enough evidence to conclude that the mean HCB concentrations differ significantly among the three depths (surface, middepth, and bottom).
+
+Since they are not statistically significant different among three means, hence Tukey post-hoc comparision was not used.
+
+## Question 2
+You want to run a sample size calculation for a replication of this experiment using hcb as the outcome measure. Assume that the sample means for hcb are similar at surface and middepth, but higher at the bottom (4.8 for the surface, 4.8 for middepth, and 5.2 for the bottom). What sample size would you need to achieve 90% power at an alpha level of 0.05.
+
+
+## Sample size calculation, R code
+
+```{r sample-size}
+v <- var(c(4.8, 4.8, 5.2))
+power.anova.test(
+	groups=3,
+	n=NULL,
+	between.var=v,
+	within.var=0.88,
+	sig.level=0.05,
+	power=0.90)
+```
+
